@@ -1,0 +1,8 @@
+"./main.o"
+"./tareasApp.o"
+"../linker.cmd"
+-lfreertos.am64x.r5f.ti-arm-clang.debug.lib
+-ldrivers.am64x.r5f.ti-arm-clang.debug.lib
+-lboard.am64x.r5f.ti-arm-clang.debug.lib
+-llibc.a
+-llibsysbm.a

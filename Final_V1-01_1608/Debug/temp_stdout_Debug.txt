@@ -1,0 +1,39 @@
+[/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc_tmp] Parsing file ...
+Found section 0 with adddress 0x00000000, size 0x00000040 bytes
+Found section 1 with adddress 0x00000040, size 0x00000bd0 bytes
+Found section 2 with adddress 0x00000c10, size 0x000004a0 bytes
+Found section 3 with adddress 0x000010b0, size 0x000002c0 bytes
+Found section 4 with adddress 0x00001370, size 0x00000150 bytes
+Found section 5 with adddress 0x000014c0, size 0x00000008 bytes
+Found section 6 with adddress 0xa0100000, size 0x00001000 bytes
+Found section 7 with adddress 0xa0101000, size 0x001a1850 bytes
+Found section 8 with adddress 0xa033be80, size 0x00012b60 bytes
+Found section 9 with adddress 0xa034e9e0, size 0x00002390 bytes
+[/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc_tmp] Found 10 sections. 10 are non-XIP sections, 0 are XIP sections, NON-XIP entryPoint = 0x00000000
+Merging section @ 0x00000040 of size 0x00000bd0, with section @ 0x00000000 of size 0x00000040
+Merging section @ 0x00000c10 of size 0x000004a0, with section @ 0x00000000 of size 0x00000c10
+Merging section @ 0x000010b0 of size 0x000002c0, with section @ 0x00000000 of size 0x000010b0
+Merging section @ 0x00001370 of size 0x00000150, with section @ 0x00000000 of size 0x00001370
+Merging section @ 0x000014c0 of size 0x00000008, with section @ 0x00000000 of size 0x000014c0
+Merging section @ 0xa0101000 of size 0x001a1850, with section @ 0xa0100000 of size 0x00001000
+Merging section @ 0xa034e9e0 of size 0x00002390, with section @ 0xa033be80 of size 0x00012b60
+Writing section header  #0, adddress 0x00000000, size 0x000014c8 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section data with adddress 0x00000000, size 0x00000040 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section data with adddress 0x00000040, size 0x00000bd0 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section data with adddress 0x00000c10, size 0x000004a0 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section data with adddress 0x000010b0, size 0x000002c0 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section data with adddress 0x00001370, size 0x00000150 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section data with adddress 0x000014c0, size 0x00000008 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section header  #1, adddress 0xa0100000, size 0x001a2850 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section data with adddress 0xa0100000, size 0x00001000 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section data with adddress 0xa0101000, size 0x001a1850 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section header  #2, adddress 0xa033be80, size 0x00014ef0 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section data with adddress 0xa033be80, size 0x00012b60 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+Writing section data with adddress 0xa034e9e0, size 0x00002390 bytes to file [/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc]
+[/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc] Parsing file ...
+Found section 0 with adddress 0x00000000, size 0x000014c8 bytes
+Found section 1 with adddress 0xa0100000, size 0x001a2850 bytes
+Found section 2 with adddress 0xa033be80, size 0x00014ef0 bytes
+[/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc] Found 3 sections. 3 are non-XIP sections, 0 are XIP sections, NON-XIP entryPoint = 0x00000000
+[/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc_xip] Parsing file ...
+[/home/gabriela/Workspace_Nvo/test_ipc_uart/Debug/test_ipc_uart.rprc_xip] Found 0 sections. 0 are non-XIP sections, 0 are XIP sections, NON-XIP entryPoint = 0x00000000
