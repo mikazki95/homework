@@ -1,0 +1,39 @@
+/*
+ * respiracion.h
+ *
+ *  Created on: 16 may 2023
+ *      Author: Ing. Alejandra Sakura Bautista Ambrocio
+ *
+ *      Procedimiento para la obtención de la gráfica de respiración, frecuencia respiratoria
+ *      y monitoreo de apnea.
+ *
+ *      Proceso original: Ing. Sakura Bautista.
+ *      Actualización: Ing. Gabriela Morales.
+ *
+ *     Versiones:
+ *     1.0.0   - Se saca el código del archivo principal y se coloca en respiracion.h y respiracion.c
+ *
+ */
+
+#ifndef INC_RESPIRACION_H_
+#define INC_RESPIRACION_H_
+
+
+
+#define BUFF_MSG_AP 5   //W:1\n activación, W:0\n desactivación para alarma de Apnea
+#define FILTRO_RESP_TAM_BLOQUE 1
+#define ENTRADA_RESP 100
+#define SALIDA_RESP   40
+#define LIM_AR_RESP    7
+
+#define FILTRO_RESP_ORDEN 65 //Orden 64
+//#define ADS_RESOLUTION 8388607.0 //Resolución del ADS1298R
+
+#define millis() HAL_GetTick()
+
+void funcion_respiracion_setup(void);
+void funcion_respiracion(void);
+
+
+
+#endif /* INC_RESPIRACION_H_ */

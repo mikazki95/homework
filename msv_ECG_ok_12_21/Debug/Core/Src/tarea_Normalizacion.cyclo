@@ -1,0 +1,5 @@
+../Core/Src/tarea_Normalizacion.c:109:6:tarea_Normalizacion_Setup	1
+../Core/Src/tarea_Normalizacion.c:119:6:tarea_Normalizacion_Loop	38
+../Core/Src/tarea_Normalizacion.c:411:7:filter	1
+../Core/Src/tarea_Normalizacion.c:419:9:DerivadaNormFuncion_I	2
+../Core/Src/tarea_Normalizacion.c:433:9:DerivadaNormFuncion_II	2

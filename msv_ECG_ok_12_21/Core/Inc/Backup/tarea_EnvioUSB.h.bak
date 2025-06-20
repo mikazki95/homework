@@ -1,0 +1,16 @@
+/*
+ * tarea_EnvioUSB.h
+ *
+ *  Created on: 23 may 2023
+ *      Author: sakura
+ */
+
+#ifndef INC_TAREA_ENVIOUSB_H_
+#define INC_TAREA_ENVIOUSB_H_
+
+#define BUFF_MSG_TOT 256
+
+
+void tarea_EnvioUSB_Setup(void);
+void tarea_EnvioUSB_Loop(void);
+#endif /* INC_TAREA_ENVIOUSB_H_ */

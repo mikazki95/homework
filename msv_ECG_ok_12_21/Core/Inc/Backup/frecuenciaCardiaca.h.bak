@@ -1,0 +1,28 @@
+/*
+ * frecuenciaCardiaca.h
+ *
+ *  Created on: May 16, 2023
+ *      Author: Ing. Alejandra Sakura Bautista Ambrocio
+ *
+ *      Procedimiento para la obtención de la frecuencia cardiaca
+ *
+ *      Proceso original: Ing. Sakura Bautista.
+ *      Actualización: Ing. Gabriela Morales.
+ *
+ *     Versiones:
+ *     1.0.0   - Se saca el código del archivo principal y se coloca en frecuenciaCardiaca.h
+ *     y frecuenciaCardiaca.c
+ *
+ */
+
+#ifndef INC_FRECUENCIACARDIACA_H_
+#define INC_FRECUENCIACARDIACA_H_
+
+#define LIM_AR_CARD    4
+#define BUFF_MSG_FC 16  //F:-1000.0\n\0
+
+#define millis() HAL_GetTick()
+
+void funcion_FrecuenciaCardiaca(void);
+
+#endif /* INC_FRECUENCIACARDIACA_H_ */

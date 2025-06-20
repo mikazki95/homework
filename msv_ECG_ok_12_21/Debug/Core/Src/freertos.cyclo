@@ -1,0 +1,17 @@
+../Core/Src/freertos.c:379:6:vApplicationGetIdleTaskMemory	1
+../Core/Src/freertos.c:394:6:vApplicationGetTimerTaskMemory	1
+../Core/Src/freertos.c:408:6:MX_FREERTOS_Init	1
+../Core/Src/freertos.c:498:6:tarea1	1
+../Core/Src/freertos.c:519:6:tarea2	1
+../Core/Src/freertos.c:538:6:tarea3	1
+../Core/Src/freertos.c:557:6:tarea4	1
+../Core/Src/freertos.c:575:6:tarea5	1
+../Core/Src/freertos.c:594:6:tarea6	1
+../Core/Src/freertos.c:613:6:tarea0	1
+../Core/Src/freertos.c:642:6:tarea7	1
+../Core/Src/freertos.c:661:6:tarea8	1
+../Core/Src/freertos.c:680:6:tarea9	1
+../Core/Src/freertos.c:694:6:timerOneCallback	3
+../Core/Src/freertos.c:759:6:HAL_GPIO_EXTI_Callback	4
+../Core/Src/freertos.c:789:8:findStr	2
+../Core/Src/freertos.c:805:9:map	1

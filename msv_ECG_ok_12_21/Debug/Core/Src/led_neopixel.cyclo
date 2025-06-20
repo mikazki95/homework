@@ -1,0 +1,3 @@
+../Core/Src/led_neopixel.c:11:6:neopixel_Init	1
+../Core/Src/led_neopixel.c:25:6:neopixel_LoadColor	2
+../Core/Src/led_neopixel.c:32:6:neopixel_ShowLeds	4

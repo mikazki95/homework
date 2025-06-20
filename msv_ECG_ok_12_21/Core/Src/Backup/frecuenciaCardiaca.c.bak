@@ -1,0 +1,105 @@
+/*
+ * frecuenciaCardiaca.c
+ *
+ *  Created on: May 16, 2023
+ *      Author: Ing. Alejandra Sakura Bautista Ambrocio.
+ *
+ *      Versiones:
+ *      1.0.0
+ */
+
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <arm_math.h>
+#include "usbd_cdc_if.h"
+#include "frecuenciaCardiaca.h"
+
+
+int     cont_fc = 0;
+extern float32_t graph1;
+float   valor_fc0=0,valor_fc1=0;
+uint8_t     delta_T_ecg=3;
+float   grad_ecg=0,dif_tfc=0;
+bool    flag_ini_pulso = false;
+float   t_fc0=0,t_fc1=0;
+float   frec_card=0;
+float   array_fc[10] = {60};
+int     cont_array_fc = 0;
+
+uint8_t msgFrecuenciaCardiaca[BUFF_MSG_FC];     // Frecuencia Cardiaca
+uint8_t msgFrecuenciaCardiaca_cnt = 0;
+float   sum_fc=0;
+extern float prom_fc;
+
+
+
+void funcion_FrecuenciaCardiaca (void)
+{
+    //Cálculo de frecuencia cardiaca
+    if (cont_fc == 1)
+        {
+            valor_fc0 = graph1;
+        }
+    else if (cont_fc > delta_T_ecg)
+        {
+            valor_fc1 = graph1;
+            cont_fc = 0;
+            grad_ecg = (valor_fc1 - valor_fc0) / delta_T_ecg;
+        }
+
+    if (grad_ecg > 0.025)
+        {
+            if (flag_ini_pulso)
+                {
+                    if (t_fc0 > 0)
+                        {
+                            t_fc1 = millis();
+                            dif_tfc = (t_fc1 - t_fc0) / 1000;
+                            frec_card = 60 / dif_tfc;
+                            flag_ini_pulso = false;
+
+                            if (frec_card < 300)
+                                {
+                                    array_fc[cont_array_fc] = frec_card;
+                                    cont_array_fc++;
+                                }
+
+                            if (cont_array_fc >= LIM_AR_CARD)
+                                {
+                                    cont_array_fc = 0;
+                                }
+                            //Envío de señal de sincronización
+                            msgFrecuenciaCardiaca_cnt = sprintf (
+                                    (char*) msgFrecuenciaCardiaca, "F:%.1f\n",
+                                    round (prom_fc));
+                        }
+                    t_fc0 = millis();
+                }
+        }
+    else if (grad_ecg < -0.02)
+        {
+            flag_ini_pulso = true;
+        }
+
+    sum_fc = 0;
+    float max_fc = 0;
+    for (int ij = 0; ij < LIM_AR_CARD; ij++)
+        {
+            if (array_fc[ij] > max_fc)
+                {
+                    max_fc = array_fc[ij];
+                }
+            sum_fc += array_fc[ij];
+        }
+    sum_fc = sum_fc - max_fc;
+    prom_fc = sum_fc / (LIM_AR_CARD - 1);
+
+    cont_fc++;
+}

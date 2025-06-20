@@ -1,0 +1,2 @@
+../Core/Src/tarea_GraficarECG.c:100:6:tarea_GraficarECG_Setup	16	static
+../Core/Src/tarea_GraficarECG.c:118:6:tarea_GraficarECG_Loop	8	static

@@ -1,0 +1,166 @@
+/*
+ * tarea_EnvioUSB.c
+ *
+ *  Created on: 23 may 2023
+ *      Author: sakura
+ */
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <arm_math.h>
+#include "usbd_cdc_if.h"
+
+
+#include "tarea_EnvioUSB.h"
+
+// Información de firmware
+extern bool flag_show_info;
+extern char firmwareVersion[];
+// Información de marcapasos
+extern bool flag_marcapasos;
+// Confirmación de comando recibido
+extern uint8_t indiceComandoRecibido;
+// Graficas ECG (1 y 2) listas
+extern bool flag_ECG_RDY;
+extern float32_t graph1;
+extern float32_t graph2;
+
+// Estado de electrodos
+extern bool flag_RevElec_RDY;
+extern bool lead_1_RA;
+extern bool lead_2_LA;
+extern bool lead_3_RL;
+extern bool lead_4_LL;
+extern bool lead_5_V1;
+
+// Cálculo de gráfica de respiración, frecuencia respiratoria y alarma de apnea
+extern bool flag_Resp_RDY; // Bandera que indica que el dato de respiración está listo
+extern float32_t graph3;
+extern float32_t Respiration_Rate;
+extern bool msgApnea;
+
+
+// Frecuencia Cardiaca calculada
+extern bool flag_FrecC_RDY;
+//extern float prom_fc;
+extern int16_t frecuenciaCardiaca;
+
+uint8_t usbMsgTotal[BUFF_MSG_TOT];             //Mensaje a transmitir por USB
+uint16_t usbCountTotal;
+uint8_t * pMSG;
+
+
+void tarea_EnvioUSB_Setup(void)
+{
+    memset (usbMsgTotal, 0x00, BUFF_MSG_TOT); // Limpiar todo el buffer
+    osDelay(500);
+}
+void tarea_EnvioUSB_Loop(void)
+{
+    usbCountTotal = 0;              // Contador de caracteres a enviar en Cero
+    pMSG = usbMsgTotal;             // Primera posición del buffer de transmisión USB
+
+    /*// Solicitud de información de versión de firmware
+    if(flag_show_info)
+        {
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"I:%s\n",firmwareVersion); //Cabecera
+            flag_show_info = false;
+        }
+    // Información de marcapasos
+    if(flag_marcapasos)
+        {
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"M:\n"); //Cabecera
+            flag_marcapasos = false;
+        }
+    // En caso de recibir un comando, confirmarlo.
+    if(indiceComandoRecibido)
+        {
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"Z:"); //Cabecera
+            switch(indiceComandoRecibido)
+                {//Comando a confirmar
+                case 1:
+                    usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"S");
+                    break;
+                case 2:
+                    usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"E");
+                    break;
+                case 3:
+                    usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"G");
+                    break;
+                case 4:
+                    usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"F");
+                    break;
+                case 5:
+                    usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"C");
+                    break;
+                case 6:
+                    usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"B");
+                    break;
+                default:
+                    break;
+                }
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"\n");
+            indiceComandoRecibido = 0; //Limpiar comando
+        }
+    // Gráficas de ECG listas
+    if(flag_ECG_RDY)
+        {
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"A:%.3f,B:%.3f",graph1,graph2);
+            flag_ECG_RDY = false;
+        }
+    // Frecuencia Cardiaca lista
+    if(flag_FrecC_RDY)
+        {
+            //usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,",F:%.1f",round(prom_fc));
+
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,",F:%i",frecuenciaCardiaca);
+
+            flag_FrecC_RDY = false;
+        }
+    // Calculo de respiración
+    if(flag_Resp_RDY)
+        {
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,",C:%.3f,R:%.3f,W:%i",graph3, Respiration_Rate, msgApnea);
+            flag_Resp_RDY = false;
+        }
+    // Información de electrodos
+    if(flag_RevElec_RDY)
+        {
+            usbCountTotal += sprintf ((char*) pMSG + usbCountTotal, ",L:%i%i%i%i%i\r\n", lead_1_RA, lead_2_LA, lead_3_RL, lead_4_LL, lead_5_V1);
+            flag_RevElec_RDY = false;
+        }
+
+
+    // Envio del mensaje calculado
+    if(usbCountTotal) //si hay algo por enviar
+        {
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"\r\n"); //Finalizar cadena
+            CDC_Transmit_FS (usbMsgTotal, usbCountTotal); // Transmitir
+            memset (usbMsgTotal, 0x00, usbCountTotal); //Limpiar lo escrito en el buffer
+        }
+*/
+    // BLOQUE DE DEBUG
+    if(flag_ECG_RDY)
+        {
+    usbCountTotal += sprintf ((char*)pMSG,"A:%.3f,B:%.3f,C:%.3f,F:%i,R:%.3f,W:%i,L:%i%i%i%i%i\r\n",
+                              graph1,
+                              graph2,
+                              graph3,
+                              frecuenciaCardiaca,
+                              Respiration_Rate,
+                              msgApnea,
+                              lead_1_RA, lead_2_LA, lead_3_RL, lead_4_LL, lead_5_V1); //Finalizar cadena
+    CDC_Transmit_FS (usbMsgTotal, usbCountTotal); // Transmitir
+    flag_ECG_RDY = false;
+        }
+    osDelay (1);//Si hay o no hay mensaje esperar 1 ms
+
+}

@@ -1,0 +1,2 @@
+../Core/Src/tarea_ControlUSB.c:129:6:tarea_EnvioUSB_Setup	1
+../Core/Src/tarea_ControlUSB.c:140:6:tarea_EnvioUSB_Loop	19

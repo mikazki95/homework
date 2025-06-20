@@ -1,0 +1,3 @@
+../Core/Src/led_neopixel.c:11:6:neopixel_Init	24	static
+../Core/Src/led_neopixel.c:25:6:neopixel_LoadColor	32	static
+../Core/Src/led_neopixel.c:32:6:neopixel_ShowLeds	32	static

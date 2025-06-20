@@ -1,0 +1,296 @@
+/*
+ * tarea_EnvioUSB.c
+ *
+ *  Created on: 23 may 2023
+ *      Author: Tonatiuh Velazquez Rojas.
+ */
+
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
+
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <arm_math.h>
+#include "usbd_cdc_if.h"
+
+#include "tarea_LeerADS.h"            // Tarea 0
+#include "tarea_GraficarECG.h"        // Tarea 1
+#include "tarea_RevisarComandos.h"    // Tarea 2
+#include "tarea_RevisarElectrodos.h"  // Tarea 3
+#include "tarea_ControlNeopixel.h"    // Tarea 4
+#include "tarea_Normalizacion.h"      // Tarea 5
+#include "tarea_Respiracion.h"        // Tarea 7
+#include "tarea_FrecuenciaCardiaca.h" // Tarea 8
+
+#include <tarea_ControlUSB.h>
+
+
+
+// Información de firmware
+extern bool flag_show_info;
+
+// Información de marcapasos
+extern bool flag_marcapasos;
+
+// Graficas ECG (1 y 2) listas
+extern osMessageQId ecgGraph1Handle;
+extern osMessageQId ecgGraph2Handle;
+float32_t g_queue1;
+float32_t g_queue2;
+extern int32_t ads_I_i; //debug
+extern float32_t g1_Derivacion1; //debug
+extern uint32_t error_cnt;
+
+
+// Estado de electrodos
+extern bool flag_RevElec_RDY;
+extern bool lead_1_RA;
+extern bool lead_2_LA;
+extern bool lead_3_RL;
+extern bool lead_4_LL;
+extern bool lead_5_V1;
+
+// Cálculo de gráfica de respiración, frecuencia respiratoria y alarma de apnea
+extern bool flag_Resp_RDY; // Bandera que indica que el dato de respiración está listo
+extern float32_t graph3;
+extern int32_t aux_grap_resp;       // para debuguear borrar al terminar
+extern float Respiration_Rate;
+extern int variable_auxiliar;      // para debuguear borrar al terminar
+extern float original_res;         // para debuguear borrar al terminar
+extern float variable_auxiliar2;
+extern bool msgApnea;
+
+// Frecuencia Cardiaca calculada
+extern bool flag_FrecC_BEEP_RDY;
+//extern float prom_fc;
+extern int16_t frecuenciaCardiaca;
+// Ping-Pong
+extern bool flag_Ping;
+
+static uint8_t usbMsgTotal[BUFF_MSG_TOT];             //Mensaje a transmitir por USB
+uint16_t usbCountTotal;
+uint8_t * pMSG;
+
+extern int64_t offsetRaw;
+
+
+extern const char versionMain[];
+const char        taskCount[] = TASK_COUNT;
+extern const char versionLeerADS[];
+extern const char versionGraficarECG[];
+extern const char versionRevisarComandos[];
+extern const char versionRevisarElectrodos[];
+extern const char versionControlNeopixel[];
+extern const char versionNormalizacion[];
+const char versionControlUSB[] = LIB_VERSION_CONTROLUSB;
+extern const char versionRespiracion[];
+extern const char versionFrecuenciaCardiaca[];
+
+
+//para debug
+//uint32_t timeMark;
+
+
+////Para HighWaterMark
+//uint32_t hwm_tmp;
+//uint32_t tiempoMedicion=0;
+//extern osThreadId GraficarECGHandle;
+//extern osThreadId RevisarComandosHandle;
+//extern osThreadId RevisarElectrodosHandle;
+//extern osThreadId ControlNeopixelHandle;
+//extern osThreadId NormalizacionHandle;
+//extern osThreadId ControlUSBHandle;
+//extern osThreadId LeerADSHandle;
+//extern osThreadId RespiracionHandle;
+//extern osThreadId FrecuenciaCardiacaHandle;
+extern float32_t ads_I_f;
+extern float32_t ads_II_f;
+extern int32_t aux_deb_norm;
+extern float   grad_ecg;
+extern int32_t aux_der;
+extern int32_t Dnorm_1;
+extern int32_t Dnorm_2;
+extern int      debug_ads;
+int             cont_E=0;
+// extern int32_t ads_Resp;     // YA NO SE USA
+
+int cont_rest_mk = 0,cont_on_mk=0;
+
+
+void tarea_EnvioUSB_Setup(void)
+{
+    memset (usbMsgTotal, 0x00, BUFF_MSG_TOT); // Limpiar todo el buffer
+    osDelay(500);
+    pMSG = usbMsgTotal;             // Primera posición del buffer de transmisión USB
+
+    HAL_GPIO_WritePin(RGB_R2_GPIO_Port, RGB_R2_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(RGB_G2_GPIO_Port, RGB_G2_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(RGB_B2_GPIO_Port, RGB_B2_Pin, GPIO_PIN_SET);
+}
+
+void tarea_EnvioUSB_Loop(void)
+{
+    usbCountTotal = 0;              // Contador de caracteres a enviar en Cero
+
+    //ECG gráfica 1 (250sps, 4ms)
+    cont_E++;
+    if (cont_E>3)
+        {
+            cont_E=0;
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"E:%i\n",debug_ads);
+        }
+    if(osMessageWaiting(ecgGraph1Handle))
+        {
+            xQueueReceive(ecgGraph1Handle, &g_queue1, 0);
+            //Envio original
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"A:%.3f\n",g_queue1);
+
+            //Envío DEBUG
+         //   usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"e,%li,%li,%lli\n",error_cnt,ads_I_i,offsetRaw);
+            // Información de marcapasos (Acorde a FC: Máximo 350lat/min, 171ms; Mínimo 15lat/min, 4seg)
+            if(flag_marcapasos)
+                {
+                    cont_on_mk++;
+                    if(cont_on_mk>30)
+                        {
+                            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"M:\n"); //Cabecera
+                            flag_marcapasos = false;
+                            cont_on_mk=0;
+                        }
+                }
+        }
+    //ECG gráfica 2 (250sps, 2ms)
+    if(osMessageWaiting(ecgGraph2Handle))
+        {
+            xQueueReceive(ecgGraph2Handle, &g_queue2, 0);
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"B:%.3f\n",g_queue2);
+        }
+
+    // Respiración (100sps, 10ms)
+    if(flag_Resp_RDY)
+        {
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"C:%.3f\nR:%.3f\nW:%i\n",graph3, Respiration_Rate, msgApnea);
+            flag_Resp_RDY = false;
+        }
+    // Frecuencia Cardiaca (Máximo 350lat/min, 171ms; Mínimo 15lat/min, 4seg)
+    if(flag_FrecC_BEEP_RDY)
+        {
+            //DEBUG start
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"bip%i\nF:%i\n",frecuenciaCardiaca,frecuenciaCardiaca);
+//            HAL_GPIO_TogglePin(RGB_R2_GPIO_Port, RGB_R2_Pin);
+            //DEBUG end
+            //usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"F:%i\n",variable_auxiliar);	//  frecuenciaCardiaca);  //
+            flag_FrecC_BEEP_RDY = false;
+        }
+    // Información de electrodos (1 c/5seg)
+    if(flag_RevElec_RDY)
+        {
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal, "L:%i%i%i%i%i\n", lead_1_RA, lead_2_LA, lead_3_RL, lead_4_LL, lead_5_V1);
+            flag_RevElec_RDY = false;
+            //HAL_GPIO_TogglePin(MK_Reset_GPIO_Port, MK_Reset_Pin);
+            if ((lead_1_RA)&&(lead_2_LA)&&(lead_4_LL)&&(lead_5_V1))
+                {
+                    cont_rest_mk++;
+                    if (cont_rest_mk>100)
+                        {
+                            cont_rest_mk=0;
+                            HAL_GPIO_WritePin(MK_Reset_GPIO_Port, MK_Reset_Pin, GPIO_PIN_RESET);
+                        }
+                }
+            else
+                {
+                    cont_rest_mk = 0;
+                    HAL_GPIO_WritePin(MK_Reset_GPIO_Port, MK_Reset_Pin, GPIO_PIN_SET);
+                }
+        }
+
+    // Solicitud de información de versión de firmware (muy ocasional, información inmutable)
+
+    if(flag_show_info)
+        {
+            // Nuevo mensaje de información
+            //usbCountTotal += sprintf ((char*)pMSG + usbCountTotal, "I:STM,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", versionMain, taskCount, versionLeerADS, versionGraficarECG, versionRevisarComandos, versionRevisarElectrodos, versionControlNeopixel, versionNormalizacion, versionControlUSB, versionRespiracion, versionFrecuenciaCardiaca);
+            //Mensaje de compatibilidad para pruebas
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal, "I:STM,1.4.0\n");
+            flag_show_info = false;
+        }
+    // Ping-Pong, cada que el MSV lo solicite (va a ser periódico)
+    if(flag_Ping)
+        {
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"P\n"); //Cabecera
+            flag_Ping = false;
+        }              //  */
+
+//////////////////////////
+
+    // Información de electrodos (1 c/5seg)
+ /*   if(flag_RevElec_RDY)
+        {
+      //      usbCountTotal += sprintf ((char*)pMSG + usbCountTotal, "L:%i%i%i%i%i\n", lead_1_RA, lead_2_LA, lead_3_RL, lead_4_LL, lead_5_V1);
+            flag_RevElec_RDY = false;
+            //HAL_GPIO_TogglePin(MK_Reset_GPIO_Port, MK_Reset_Pin);
+             if ((lead_1_RA)&&(lead_2_LA)&&(lead_4_LL)&&(lead_5_V1))
+                {
+                    cont_rest_mk++;
+                    if (cont_rest_mk>100)
+                        {
+                            cont_rest_mk=0;
+                            HAL_GPIO_WritePin(MK_Reset_GPIO_Port, MK_Reset_Pin, GPIO_PIN_RESET);
+                        }
+                }
+            else
+                {
+                    cont_rest_mk = 0;
+                    HAL_GPIO_WritePin(MK_Reset_GPIO_Port, MK_Reset_Pin, GPIO_PIN_SET);
+                }
+
+        }   //    */
+   /*  if(osMessageWaiting(ecgGraph1Handle))
+        {
+
+            xQueueReceive(ecgGraph1Handle, &g_queue1, 0);
+            //usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"A:%.3f,%.3f,%i,%li,%li,%li\r",ads_II_f,ads_I_f,aux_deb_norm,Dnorm_1,Dnorm_2,aux_deb_norm);
+            // Información de marcapasos (Acorde a FC: Máximo 350lat/min, 171ms; Mínimo 15lat/min, 4seg)
+            if(flag_marcapasos)
+                {
+                    cont_on_mk++;
+                    if(cont_on_mk>30)
+                        {
+                          //  usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"M:\n"); //Cabecera
+                            flag_marcapasos = false;
+                            cont_on_mk=0;
+                            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"A:%.3f,%.3f,88\r",g_queue1,g_queue1);
+                        }
+                }
+
+        else
+            {
+                usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"A:%.3f,%.3f,%0.3f,%i\r",g_queue1,original_res,graph3,variable_auxiliar);
+            }
+
+
+        }  // */
+
+    // Respiración (100sps, 10ms)
+  /*  if(flag_Resp_RDY)
+        {
+            usbCountTotal += sprintf ((char*)pMSG + usbCountTotal,"C:%i,%0.0f,%0.0f,%0.0f,%li,%0.1f\r",variable_auxiliar,
+            								graph3,round(Respiration_Rate),original_res,aux_grap_resp,variable_auxiliar2);
+
+            flag_Resp_RDY = false;
+        }     //  */
+
+    // Envio del mensaje calculado
+    if(usbCountTotal) //si hay algo por enviar
+        {
+            //usbCountTotal += sprintf ((char*)pMSG + usbCountTotal, "\r\n");
+            CDC_Transmit_FS (usbMsgTotal, usbCountTotal); // Transmitir
+        }
+    osDelay (1);//Si hay o no hay mensaje esperar 1 ms
+
+}

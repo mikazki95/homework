@@ -1,0 +1,3 @@
+../Core/Src/tarea_FrecuenciaCardiaca.c:47:6:tarea_FrecuenciaCardiaca_Setup	1
+../Core/Src/tarea_FrecuenciaCardiaca.c:52:6:tarea_FrecuenciaCardiaca_Loop	10
+../Core/Src/tarea_FrecuenciaCardiaca.c:123:9:DerivadaFuncion	2

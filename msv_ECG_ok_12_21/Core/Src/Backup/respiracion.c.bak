@@ -1,0 +1,292 @@
+/*
+ * respiracion.c
+ *
+ *  Created on: 16 may 2023
+ *      Author: Ing. Alejandra Sakura Bautista.
+ *
+ *      Versiones:
+ *      1.0.0
+ */
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <arm_math.h>
+#include "usbd_cdc_if.h"
+#include "respiracion.h"
+
+//Nuevas variables para los tiempos
+extern bool flag_DataRespRdy;
+extern float32_t ads_Resp; //Gaby respiración
+
+
+
+extern uint16_t ch1Raw;
+float   Resp_volt=0;
+float32_t promedioCh1 = 0;  //Promedio del canal 1, grafica suavizada. Entrada para el filtro
+float   muestrasCh1Raw[ENTRADA_RESP] = { 0 };  // Array para promediar/suavizar la lectura del canal 1
+extern arm_fir_instance_f32 instanciaFiltroResp;    //Instancia del filtro
+float32_t salidaFiltroRespiracion;
+float32_t respiracionSuavizada_Buffer[SALIDA_RESP] = { 0 };
+float32_t respiracionSuavizada;
+uint8_t     flag_ini_med=0;
+float   valor_resp_min=0,valor_resp_Max=0;
+uint8_t     flag_alarmApnea=0;
+uint8_t     cont_fr=0,delta_T_resp=20;
+float   resp_gr1=0,resp_gr0=0;
+float   grad_resp=0;
+bool    flag_calc_rpm = false;
+float   tiempo_rpm1=0,tiempo_rpm0=0;
+bool    flag_ciclo_resp = false;
+float   valor_rpm=0;
+int     cont_array_fr = 0;
+float   array_rpm[10]= {0};
+uint8_t     flag_inhal=0;
+float   grad_resp_min = 300;
+int     cont_clr=0;
+float   sum_fr=0,prom_fr=0;
+
+extern bool flag_activa_apnea; // Informa la activación de la alarma de apnea
+float   tim_apnea1=0,tim_apnea2=0;
+uint8_t     cta_ciclos_ap=0;
+
+uint8_t msgAlarmaApnea[BUFF_MSG_AP];     // Frecuencia Cardiaca
+uint8_t msgAlarmaApnea_cnt = 0;
+
+float   tiempoApnea = 0;
+float   ref_apnea = 0;
+
+extern int     valor_apnea; // se establecen 10 segundos para pruebas
+uint32_t    cta_apnea_ON=0;
+
+extern float32_t graph3;
+extern float   Respiration_Rate;
+
+arm_fir_instance_f32 instanciaFiltroResp;    //Instancia del filtro
+float32_t edoFiltroResp[FILTRO_RESP_TAM_BLOQUE + FILTRO_RESP_ORDEN - 1];
+float32_t coeficientesFiltroRespiracion[FILTRO_RESP_ORDEN] = // Coeficientes del filtro
+        {
+                0.014063035138f,0.014222626574f,0.014378431253f,0.014530334622f,0.014678221196f,0.014821982011f,0.014961506240f,0.015096690506f,
+                0.015227431431f,0.015353631228f,0.015475193039f,0.015592023730f,0.015704035759f,0.015811143443f,0.015913262963f,0.016010319814f,
+                0.016102235764f,0.016188941896f,0.016270371154f,0.016346462071f,0.016417155042f,0.016482396051f,0.016542132944f,0.016596321017f,
+                0.016644919291f,0.016687888652f,0.016725197434f,0.016756813973f,0.016782715917f,0.016802882776f,0.016817299649f,0.016825953498f,
+                0.016828838736f,0.016825953498f,0.016817299649f,0.016802882776f,0.016782715917f,0.016756813973f,0.016725197434f,0.016687888652f,
+                0.016644919291f,0.016596321017f,0.016542132944f,0.016482396051f,0.016417155042f,0.016346462071f,0.016270371154f,0.016188941896f,
+                0.016102235764f,0.016010319814f,0.015913262963f,0.015811143443f,0.015704035759f,0.015592023730f,0.015475193039f,0.015353631228f,
+                0.015227431431f,0.015096690506f,0.014961506240f,0.014821982011f,0.014678221196f,0.014530334622f,0.014378431253f,0.014222626574f,0.014063035138f
+        };
+
+
+
+
+
+
+void funcion_respiracion_setup(void){
+    //Inicialización del filtro de respiración
+        arm_fir_init_f32 (&instanciaFiltroResp, FILTRO_RESP_ORDEN,(float32_t*) &coeficientesFiltroRespiracion[0],&edoFiltroResp[0],FILTRO_RESP_TAM_BLOQUE);
+
+}
+
+
+void funcion_respiracion (void)
+{
+
+    if (flag_DataRespRdy)
+        {
+            flag_DataRespRdy = false; //borrar bandera
+
+            //Resp_volt = (float) ch1Raw * 4000 / ADS_RESOLUTION; // 2.4 Volts * 10000 para mejorar resolución
+            Resp_volt = ads_Resp;
+            promedioCh1 = 0;
+            for (int16_t i = (ENTRADA_RESP - 1); i > 0; i--)
+                {
+                    muestrasCh1Raw[i] = muestrasCh1Raw[i - 1];
+                    promedioCh1 += muestrasCh1Raw[i];
+                }
+            muestrasCh1Raw[0] = Resp_volt;
+            promedioCh1 += muestrasCh1Raw[0];
+            promedioCh1 = (promedioCh1 / ENTRADA_RESP);
+
+            //filtrado de respiración
+            arm_fir_f32 (&instanciaFiltroResp, &promedioCh1,
+                         &salidaFiltroRespiracion,
+                         FILTRO_RESP_TAM_BLOQUE); //Retraso. FILTRO_RESP_ORDEN 64 [0.32seg]
+
+            //Suavizado de la respiración filtrada
+            respiracionSuavizada = 0;
+            for (int16_t i = (SALIDA_RESP - 1); i > 0; i--) //Retraso. [1.5seg]
+                {
+                    respiracionSuavizada_Buffer[i] =
+                            respiracionSuavizada_Buffer[i - 1];
+                    respiracionSuavizada += respiracionSuavizada_Buffer[i];
+                }
+
+            respiracionSuavizada_Buffer[0] = salidaFiltroRespiracion;
+            respiracionSuavizada += respiracionSuavizada_Buffer[0];
+            respiracionSuavizada = respiracionSuavizada / SALIDA_RESP;
+
+            if (flag_ini_med == 0)
+                {
+                    if (respiracionSuavizada > valor_resp_Max)
+                        {
+                            valor_resp_Max = respiracionSuavizada;
+                            flag_alarmApnea = 0;
+                        }
+                    else
+                        {
+                            valor_resp_min = respiracionSuavizada;
+                            flag_ini_med = 1;
+                        }
+                }
+
+            if (flag_ini_med == 1)
+                {
+                    if (respiracionSuavizada < valor_resp_min)
+                        {
+                            valor_resp_min = respiracionSuavizada;
+                        }
+                    else
+                        {
+                            flag_ini_med = 2;
+                        }
+                }
+
+            // CALCULO DE FRECUENCIA RESPIRATORIA
+            if (cont_fr == 1)
+                {
+                    resp_gr0 = respiracionSuavizada;
+                }
+            else if (cont_fr > delta_T_resp)
+                {
+                    resp_gr1 = respiracionSuavizada;
+                    cont_fr = 0;
+                    grad_resp = (resp_gr1 - resp_gr0) / 0.006;
+
+                    if (grad_resp > 5)
+                        {
+                            if (flag_calc_rpm)
+                                {
+                                    flag_calc_rpm = false;
+                                    tiempo_rpm1 = millis();
+                                    flag_ciclo_resp = true;
+                                    valor_rpm = 60000
+                                            / (tiempo_rpm1 - tiempo_rpm0); // milisegundos
+                                    tiempo_rpm0 = millis();
+                                    if (valor_rpm < 150)
+                                        {
+                                            array_rpm[cont_array_fr] =
+                                                    valor_rpm;
+                                            cont_array_fr++;
+                                        }
+
+                                    if (cont_array_fr > LIM_AR_RESP)
+                                        {
+                                            cont_array_fr = 1;
+                                        }
+                                    /*   msgPrueba_cnt = sprintf ((char*) msgPrueba, "X:%0.1f\n",round(tiempoApnea));
+                                     CDC_Transmit_FS ((uint8_t*) msgPrueba,msgPrueba_cnt);
+                                     msgPrueba_cnt =0;*/
+                                }
+                            flag_inhal = 0;
+                        }
+                    else if (grad_resp < (0.6 * grad_resp_min))
+                        {
+                            if (flag_inhal == 0)
+                                {
+                                    grad_resp_min = grad_resp;
+                                    cont_clr = 0;
+                                    flag_calc_rpm = true;
+                                }
+                            flag_inhal = 1;
+                        }
+                    if ((flag_inhal == 1) && (grad_resp < grad_resp_min))
+                        {
+                            grad_resp_min = grad_resp;
+                        }
+                }
+
+            if (cont_clr > 2000)
+                {
+                    grad_resp_min = grad_resp;
+                    cont_clr = 0;
+                }
+            cont_clr++;
+
+            sum_fr = 0;
+            float max_fr = 0, min_fr = 400;
+            for (int ij = 0; ij < LIM_AR_RESP; ij++)
+                {
+                    if (array_rpm[ij] > max_fr)
+                        {
+                            max_fr = array_rpm[ij];
+                        }
+                    if (array_rpm[ij] < min_fr)
+                        {
+                            min_fr = array_rpm[ij];
+                        }
+                    /* if (flag_alarmApnea == 1)
+                     {
+                     array_rpm [ij] = 0;
+                     }*/
+                    sum_fr += array_rpm[ij];
+                }
+            sum_fr = sum_fr - max_fr - min_fr;
+            prom_fr = sum_fr / (LIM_AR_RESP - 2);
+
+            if (flag_activa_apnea)
+                {
+                    if (flag_ciclo_resp)
+                        {
+                            tim_apnea1 = millis();
+                            if (flag_alarmApnea == 1)
+                                {
+                                    cta_ciclos_ap++;
+                                    if (cta_ciclos_ap > 3)
+                                        {
+                                            flag_alarmApnea = 0;
+                                            cta_ciclos_ap = 0;
+                                            msgAlarmaApnea_cnt = sprintf (
+                                                    (char*) msgAlarmaApnea,
+                                                    "W:0\n");
+                                            prom_fr = 0;
+                                        }
+
+                                }
+                            flag_ciclo_resp = false;
+                        }
+                    tim_apnea2 = millis();
+                    tiempoApnea = (tim_apnea2 - tim_apnea1) / 1000;
+                    ref_apnea = (float) valor_apnea;
+                    if ((tiempoApnea >= ref_apnea) && (flag_ini_med == 2))
+                        {
+                            flag_alarmApnea = 1;
+                            cta_apnea_ON++;
+                            cta_ciclos_ap = 0;
+                            if (cta_apnea_ON == 2)
+                                {
+                                    msgAlarmaApnea_cnt = sprintf (
+                                            (char*) msgAlarmaApnea, "W:1\n");
+                                }
+                        }
+                    else
+                        {
+                            cta_apnea_ON = 0;
+                        }
+                }
+            else
+                {
+                    cta_apnea_ON = 0;
+                    flag_alarmApnea = 0;
+                }
+            graph3 = respiracionSuavizada; ///*/
+            cont_fr++;
+            Respiration_Rate = prom_fr; // Frecuencia respiratoria calculada*/
+
+        }
+
+}
