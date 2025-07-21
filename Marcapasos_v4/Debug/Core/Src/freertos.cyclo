@@ -1,0 +1,5 @@
+../Core/Src/freertos.c:89:6:vApplicationGetIdleTaskMemory	1
+../Core/Src/freertos.c:103:6:MX_FREERTOS_Init	1
+../Core/Src/freertos.c:143:6:tarea1	6
+../Core/Src/freertos.c:294:9:DerivadaNormFuncion_I	2
+../Core/Src/freertos.c:318:7:filter	1

@@ -1,0 +1,418 @@
+/*
+ * PANI.cpp
+ *
+ * Created: 24/10/2022 02:30:14 p.m.
+ * Author : Gaby Morales
+ */ 
+
+#define F_CPU 14745600UL
+
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+#include <stdlib.h>
+// #include <avr/eeprom.h>
+// #include <avr/wdt.h>
+// #include <math.h>
+
+#include "USART0.h"
+#include "I2C.h"
+#include "Sensores.h"
+
+#define NPA700_R    0x51
+#define NPA700_W    0x50
+
+char version_pani[10]={"2.3.0"};	
+
+char	comando[10]={0};
+
+char	pres_str[10]={0};
+char	m_pres_str[10]={0};
+char	sist_str[10]={0};
+char	valor_p[10]={0};
+char	valor_m[10]={0};
+
+int		pres_array[200]={0};//,pres_array1[230]={0};
+int		delta_array[200]={0};//,m_array1[230]={0};
+int		timer_array[200]={0};
+int		limite_presion=190;
+
+int cont_timer=0;
+
+int8_t	inicio_med=0,rx_pos=0,inicio_calc=0;
+int8_t	flag_cancela=0;
+
+ISR (USART_RX_vect)
+{
+	comando[rx_pos]=UDR0;
+	rx_pos++;
+
+	if ((comando[0]=='M')&&(comando[1]=='\n'))
+	{
+		if (rx_pos>=2)
+		{
+			inicio_med=1;
+			flag_cancela=0;
+			send_char('I');
+			rx_pos=0;
+			PORTB = 0b00000010;	//activa motor y válvula
+		}
+	}
+	if ((comando[0]=='D')&&(comando[1]=='\n'))
+	{
+		if (rx_pos>=2)
+		{
+			inicio_med=2;
+			inicio_calc=0;
+		//	send_char('F');
+			rx_pos=0;
+		}
+	}
+	if ((comando[0]=='V')&&(comando[1]=='\n'))		// cerrar válvula
+	{
+		if (rx_pos>=2)
+		{
+			PORTB &=~(0xFE);
+			rx_pos=0;
+			send_char('V');
+			send_char('\n');
+			flag_cancela=1;
+		}
+	}
+
+	if ((comando[0]=='A')&&(comando[1]=='\n'))
+	{
+		if (rx_pos>=2)
+		{
+			limite_presion=190;
+			rx_pos=0;
+			send_char('A');
+			send_char('\n');
+		}
+	}
+	if ((comando[0]=='N')&&(comando[1]=='\n'))
+	{
+		if (rx_pos>=2)
+		{
+			limite_presion=160;
+			rx_pos=0;
+			send_char('N');
+			send_char('\n');
+		}
+	}
+	if ((comando[0]=='B')&&(comando[1]=='\n'))
+	{
+		if (rx_pos>=2)
+		{
+			limite_presion=120;
+			send_char('B');
+			send_char('\n');
+			rx_pos=0;
+		}
+	}
+	if ((comando[0]=='I')&&(comando[1]=='\n'))
+	{
+		if (rx_pos>=2)
+		{
+			send_string("I:PNI,");
+			send_string(version_pani);
+			send_char('\n');
+			rx_pos=0;
+		}
+	}
+	if ((comando[0]=='P')&&(comando[1]=='\n'))
+	{
+		if (rx_pos>=2)
+		{
+			send_char('P');
+			send_char('\n');
+			rx_pos=0;
+		}
+	}
+}
+
+ISR (TIMER0_OVF_vect)
+{
+	cont_timer++;
+	TCNT0 = 184;
+	
+}
+
+int main(void)
+{
+float suma_BPM=0;
+float dif_pres=0;
+int flag_max=0;
+int p_dias=0;
+int flag_sist=0;
+float limi_dias=0, BPM=0;
+float limi_sist=0;
+int indice_max=0;
+int max_delta=0;
+int aux_dif=0;
+int p_act_int=0;
+
+
+	float	pres_npa=0;
+	float	m_pres=0;
+	float	pres_ant=0,max_pres=0,min_pres=0;
+	float	pres_act=0, pres_min=0;
+	float	p_sist=0,m_sist=0;
+
+	int flag_start=0;
+	int	i_array=0, indice=0;
+
+	DDRB = 0b00000011;		//PB0  válvula   PB1 motor
+	
+	TCNT0 = 184;
+	TCCR0A = 0x00;
+	TCCR0B = 0x00;
+	TIMSK0 = 0x01;
+
+	cli();
+		
+	usart_init();
+
+	UCSR0B =  (1<<RXEN0) | (1<<TXEN0)|(1<<RXCIE0);
+	
+	sei();
+    
+	i2c_inicio();	
+
+	read_NPA700est(NPA700_R);
+
+	_delay_ms(100);
+
+	send_char('e');
+    while (1) 
+    {
+		if (inicio_med==1)
+ 		{
+	 		pres_npa=read_NPA700(NPA700_R);
+			pres_act=pres_npa;
+
+			if (pres_act>=limite_presion)
+			{
+				inicio_calc=1;
+			}
+			
+// 			if (pres_act>max_pres)
+// 			{
+// 				if (flag_max==1)
+// 				{	
+// 					dif_pres=max_pres-min_pres;
+// 				}
+// 				else
+// 				{
+// 					dif_pres=0;
+// 				}
+// 				flag_max=0;
+// 				max_pres=pres_act;
+// 				min_pres=pres_act;
+// 			}
+// 			else 
+// 			{
+// 				//if (flag_max==0)
+// 				//{
+// 					//if (pres_act<min_pres-3)
+// 					//{
+// 						//min_pres=pres_act;
+// 						//flag_max=2;
+// 					//} 
+// 					//else
+// 					//{
+// 						//min_pres=pres_act;
+// 						//flag_max=1;
+// 					//}
+// 				//}
+// 				//else 
+// 				if (pres_act<min_pres-1)//(flag_max!=0)&&
+// 				{
+// 					min_pres=pres_act;
+// 					flag_max=1;
+// 				}
+// 				
+// 			}
+
+			//p_act_int=int(pres_act)
+// 			dtostrf(pres_act,4,0,m_pres_str);
+// 			send_string(m_pres_str);
+// 			send_char(',');
+// 				dtostrf(dif_pres,4,2,m_pres_str);
+// 				send_string(m_pres_str);
+// 				send_char('\n');
+
+			m_pres=(pres_act-pres_ant)/0.025;
+			if (inicio_calc==1)
+			{
+				if (flag_start==0)
+				{
+					PORTB = 0b00000000;	//desctiva motor y válvula
+					_delay_ms(500);
+					flag_start=1;
+					pres_min=pres_act;
+					TCCR0B = 0X05;
+					send_string("Inicio de calculo: ");
+					send_char('\n');
+					
+					max_delta=0;
+					
+				} 
+				else 
+				{
+					if (pres_act<pres_min)
+					{
+						pres_min=pres_act;
+						
+						if (flag_start==2)
+						{
+							m_sist=(float)delta_array[i_array];
+							dtostrf(m_sist,4,2,valor_m);
+							send_string(valor_m);
+							send_char('\n');
+							timer_array[i_array]=cont_timer;
+							i_array++;
+							flag_start=1;
+							cont_timer=0;
+											
+						}
+						
+					}
+					else 
+					{
+						
+						aux_dif=(int)10*(pres_act-pres_min);
+						if (delta_array[i_array]<aux_dif)
+						{
+							flag_start=2;
+							indice=i_array;
+							delta_array[i_array]=aux_dif;
+							pres_array[i_array]=(int)pres_act;
+						}
+					}
+				}
+				
+			}
+
+			pres_ant=pres_act;
+			
+	 		//dtostrf(pres_npa,4,2,pres_str);
+	 		//send_string(pres_str);
+			//send_char(',');
+			//
+			_delay_ms(25);  //valor ininial de puebas
+ 		}
+		else if (inicio_med==2)
+		{
+
+			flag_sist=0;	
+			flag_start=0;
+			//send_string("numero de muestras: ");
+			TCCR0B = 0x00;
+			indice=i_array;
+			//dtostrf((float)indice,4,2,valor_p);
+			//send_string(valor_p);
+			//send_char('\n');
+			//send_string("Sistolica: ");
+			//send_char('\n');
+			for (int i=0;i<i_array;i++)
+			{
+				if (i>0)
+				{					
+					suma_BPM+=0.30*(float)timer_array[i];
+				}
+				if (delta_array[i]>max_delta)
+				{
+					max_delta=delta_array[i];
+					indice_max=i;
+				}
+
+//  				p_sist=(float)cont_array[i];
+//  				dtostrf(p_sist,4,2,sist_str);
+//  				send_string(sist_str);
+//  				send_char(',');
+//  				p_sist=(float)pres_array[i];
+//  				dtostrf(p_sist,4,2,sist_str);
+//  				send_string(sist_str);
+//  				send_char(',');
+//  				m_sist=(float)delta_array[i];
+//  				dtostrf(m_sist,2,2,valor_m);
+//  				send_string(valor_m);
+//  				send_char('\n');
+			}
+
+			limi_sist=(float)delta_array[indice_max]*0.495;
+			limi_dias=(float)delta_array[indice_max]*0.70;
+			
+			for (int j=0;j<=i_array;j++)
+			{
+// 				 if (flag_sist==0)
+// 				 {
+// 					pres_ant=(float)delta_array[j];
+// 					send_string("delta_array: ");
+// 					dtostrf(pres_ant,4,2,sist_str);
+// 					send_string(sist_str);
+// 					send_char(',');
+// 
+// 				 	pres_ant=(float)pres_array[j];
+// 					send_string("pres_array: ");
+// 				 	dtostrf(pres_ant,4,2,sist_str);
+// 				 	send_string(sist_str);
+// 				 	send_char(',');
+// 					send_string("limi_sist: ");
+// 					dtostrf(limi_sist,2,2,valor_m);
+// 					send_string(valor_m);
+// 				 	send_char('\n');
+// 				}
+				if ((flag_sist==0)&&(delta_array[j]>limi_sist))
+				{
+					flag_sist=1;
+					p_sist=pres_array[j-1];
+				}
+				if (j==i_array)
+				{
+					p_dias=pres_array[j];
+				}
+				else if ((j>indice_max)&&(delta_array[j]<limi_dias))//&&(flag_diast==0))
+				{
+					
+					p_dias=pres_array[j-1];
+					j=i_array+1;
+				}
+			}
+			
+			send_string("Sistólica: ");
+			dtostrf(p_sist,4,2,sist_str);
+			send_string(sist_str);
+			send_char('\n');
+			send_string("Diastólica: ");
+			dtostrf(p_dias,4,2,valor_m);
+			send_string(valor_m);
+			send_char('\n');
+			BPM=suma_BPM/(i_array-1);
+			send_string("BPM: ");
+			dtostrf(BPM,2,2,valor_m);
+			send_string(valor_m);
+			send_char('\n');
+
+			for (int j=0;j<indice;j++)
+			{
+				pres_array[j]=0;
+				delta_array[j]=0;
+			}
+			
+			BPM=0;
+			i_array=0;
+			inicio_med=0;
+			min_pres=0;
+			max_pres=0;
+			dif_pres=0;
+			flag_max=0;
+			PORTB = 0b00000001;
+			_delay_ms(5000);
+			PORTB = 0x00;
+		}
+		
+	}		
+}
+
